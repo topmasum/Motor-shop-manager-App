@@ -9,6 +9,7 @@ class CustomTextField extends StatelessWidget {
   final bool isPassword;
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
+  final FocusNode? focusNode;
 
   const CustomTextField({
     super.key,
@@ -19,6 +20,7 @@ class CustomTextField extends StatelessWidget {
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
     this.validator,
+    this.focusNode,
   });
 
   @override
@@ -27,6 +29,7 @@ class CustomTextField extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
+        focusNode: focusNode,
         obscureText: isPassword,
         keyboardType: keyboardType,
         validator: validator,
