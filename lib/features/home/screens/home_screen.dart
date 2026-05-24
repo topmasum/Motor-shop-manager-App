@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:motorshop/features/sales_history/screens/history_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../pos/screens/point_of_sale_screen.dart';
 import '../../stock/screens/add_product_screen.dart';
+import '../../stock/screens/low_stock_screen.dart';
 import '../../stock/screens/stock_dashboard_screen.dart';
-import '../widgets/sales_summary_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../widgets/weekly_revenue_chart.dart';
+// --- ADDED YOUR NEW ANALYTICS WIDGET IMPORT ---
+import '../widgets/daily_analytics_cards.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,7 +24,7 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
@@ -48,16 +54,32 @@ class HomeScreen extends StatelessWidget {
               leading: const Icon(Icons.inventory, color: AppColors.textSecondary),
               title: const Text('Stock & Inventory', style: TextStyle(color: AppColors.textSecondary)),
               onTap: () {
-                // Instantly pop the drawer and navigate to Stock Screen
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const StockScreen()));
               },
             ),
             ListTile(
+              leading: const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+              title: const Text('Low Stock Alerts', style: TextStyle(color: AppColors.textSecondary)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => LowStockScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history_toggle_off_outlined, color: AppColors.textSecondary),
+              title: const Text('Sales History', style: TextStyle(color: AppColors.textSecondary)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => HistoryScreen()));
+              },
+            ),
+
+            ListTile(
               leading: const Icon(Icons.point_of_sale, color: AppColors.textSecondary),
               title: const Text('Make a Sale', style: TextStyle(color: AppColors.textSecondary)),
               onTap: () {
-                // TODO: Navigate to POS Screen
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const PosScreen()));
               },
             ),
             const Divider(color: AppColors.textSecondary, thickness: 0.2),
@@ -90,14 +112,13 @@ class HomeScreen extends StatelessWidget {
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
               ),
 
-              // --- NEW DYNAMIC SHOP NAME CODE ---
+              // Dynamic Shop Name
               FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('shops')
                     .doc(FirebaseAuth.instance.currentUser?.uid)
                     .get(),
                 builder: (context, snapshot) {
-                  // While waiting for Firebase to respond
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Text(
                       "Loading...",
@@ -105,9 +126,7 @@ class HomeScreen extends StatelessWidget {
                     );
                   }
 
-                  // If we successfully get the data
                   if (snapshot.hasData && snapshot.data!.exists) {
-                    // Extract the shopName from the Firestore document
                     String shopName = snapshot.data!.get('shopName') ?? 'Shop Owner';
                     return Text(
                       shopName,
@@ -115,34 +134,18 @@ class HomeScreen extends StatelessWidget {
                     );
                   }
 
-                  // Fallback just in case something goes wrong
                   return const Text(
                     "Shop Owner",
                     style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.bold),
                   );
                 },
               ),
-              // -----------------------------------
               const SizedBox(height: 24),
 
-              // Summary Cards Row
-              const Row(
-                children: [
-                  SalesSummaryCard(
-                    title: "Today's Sales",
-                    value: "\$0.00",
-                    icon: Icons.attach_money,
-                    iconColor: Colors.greenAccent,
-                  ),
-                  SizedBox(width: 16),
-                  SalesSummaryCard(
-                    title: "Low Stock",
-                    value: "0 Items",
-                    icon: Icons.warning_amber_rounded,
-                    iconColor: Colors.orangeAccent,
-                  ),
-                ],
-              ),
+              // --- REPLACED THE OLD CARDS WITH YOUR LIVE ANALYTICS ---
+              DailyAnalyticsCards(),
+              // -------------------------------------------------------
+
               const SizedBox(height: 32),
 
               // Quick Actions
@@ -154,11 +157,10 @@ class HomeScreen extends StatelessWidget {
               PrimaryButton(
                 text: "New Sale",
                 onPressed: () {
-                  // TODO: Go to POS Screen
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const PosScreen()));
                 },
               ),
               const SizedBox(height: 12),
-              // A secondary outline button for adding stock
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -173,31 +175,17 @@ class HomeScreen extends StatelessWidget {
                     side: const BorderSide(color: AppColors.textSecondary),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-
                 ),
               ),
               const SizedBox(height: 32),
 
-              // Placeholder for the 7-Day Chart
+              // 7-Day Chart
               const Text(
                 "Last 7 Days",
                 style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Center(
-                  child: Text(
-                    "Chart will be displayed here",
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-              )
+              WeeklyRevenueChart(),
             ],
           ),
         ),

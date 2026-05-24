@@ -95,7 +95,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Edit Product', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: SingleChildScrollView(

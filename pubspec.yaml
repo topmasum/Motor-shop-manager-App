@@ -49,6 +49,11 @@ dev_dependencies:
   firebase_auth: ^6.5.1
   cloud_firestore: ^6.4.1
   google_fonts: ^8.1.0
+  fl_chart: ^1.2.0
+  intl: ^0.20.2
+  screenshot: ^3.0.0
+  share_plus: ^13.1.0
+  path_provider: ^2.1.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

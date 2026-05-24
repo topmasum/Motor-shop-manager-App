@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:motorshop/features/auth/screens/login_screen.dart';
+import 'features/auth/screens/auth_gate.dart';
 import 'firebase_options.dart';
 import 'features/auth/screens/signup_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -45,7 +46,7 @@ class MyApp extends StatelessWidget {
       ),
     ),
       // Set the initial screen to your new Signup Screen
-      home: const LoginScreen(),
+        home: const AuthGate(),
     );
   }
 }

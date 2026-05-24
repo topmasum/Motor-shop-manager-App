@@ -172,7 +172,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           'Add Products',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: Column(
