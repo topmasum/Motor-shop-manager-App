@@ -4,6 +4,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../services/auth_service.dart';
+// --- ADDED YOUR CUSTOM SNACKBAR IMPORT ---
+import '../../../core/utils/custom_snackbar.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -34,17 +36,13 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _isLoading = false);
 
       if (mounted) {
-        // Show success or error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result ?? 'An error occurred'),
-            backgroundColor: result!.contains('Success') ? Colors.green : Colors.red,
-          ),
-        );
-
-        // If successful, you would navigate to the Login screen here
-        if (result.contains('Success')) {
+        // --- REPLACED WITH CUSTOM SNACKBAR LOGIC ---
+        if (result != null && result.contains('Success')) {
+          CustomSnackbar.showSuccess(context, result);
+          // If successful, you can pop back to the login screen
           // Navigator.pop(context);
+        } else {
+          CustomSnackbar.showError(context, result ?? 'An error occurred');
         }
       }
     }

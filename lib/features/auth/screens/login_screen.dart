@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/custom_snackbar.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/screens/home_screen.dart';
@@ -37,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         if (result == "Success") {
           // REMOVE any SnackBar or Navigator.pop() here
+          CustomSnackbar.showSuccess(context, "Login successful!");
 
           // Push to Home Screen and remove the Login Screen from history
           // so the user can't press the Android 'back' button to go back to login
@@ -46,13 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 (route) => false, // This destroys the back-stack
           );
         } else {
-          // Show error
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result ?? 'An error occurred'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          CustomSnackbar.showError(context, result ?? 'An error occurred');
         }
       }
     }
