@@ -59,6 +59,7 @@ class StockRepository {
       await _shopDoc.collection('products').doc(existingDocId).update({
         'quantity': FieldValue.increment(product.quantity),
         'price': product.price,
+        'buyingPrice': product.buyingPrice, // Update buying price if it changed
       });
     } else {
       // IT DOES NOT EXIST: Create new
@@ -71,6 +72,7 @@ class StockRepository {
         productModel: product.productModel,
         quantity: product.quantity,
         price: product.price,
+        buyingPrice: product.buyingPrice, // FIXED: Grabbed from the model, not the UI!
         searchKeywords: product.searchKeywords,
         description: product.description,
         imageUrl: product.imageUrl,
@@ -83,7 +85,7 @@ class StockRepository {
     await addCategory(product.categoryName);
   }
 
-  // --- AUTO-SUGGESTION HELPERS (CRASH-PROOF VERSION) ---
+  // --- AUTO-SUGGESTION HELPERS ---
   Future<List<String>> getCategoryNames() async {
     if (_userId == null) return [];
 
@@ -144,8 +146,9 @@ class StockRepository {
   }
 
   // --- DASHBOARD ANALYTICS ENGINE ---
+  // --- DASHBOARD ANALYTICS ENGINE ---
   Stream<Map<String, dynamic>> getTodayMetrics() {
-    if (_userId == null) return Stream.value({'revenue': 0.0, 'itemsSold': 0});
+    if (_userId == null) return Stream.value({'revenue': 0.0, 'profit': 0.0, 'itemsSold': 0});
 
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
@@ -156,20 +159,32 @@ class StockRepository {
         .map((snapshot) {
 
       double totalRevenue = 0.0;
+      double totalProfit = 0.0; // --- NEW PROFIT TRACKER ---
       int totalItemsSold = 0;
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
+
+        // Revenue is the total cash handed to you by the customer
         totalRevenue += (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
 
         final items = data['items'] as List<dynamic>? ?? [];
         for (var item in items) {
-          totalItemsSold += (item['quantitySold'] as num?)?.toInt() ?? 0;
+          int qty = (item['quantitySold'] as num?)?.toInt() ?? 0;
+          totalItemsSold += qty;
+
+          // --- THE NEW PROFIT MATH ---
+          // Profit = (Selling Price - Buying Price) * Quantity Sold
+          double sellPrice = (item['priceAtSale'] as num?)?.toDouble() ?? 0.0;
+          double buyPrice = (item['buyingPriceAtSale'] as num?)?.toDouble() ?? 0.0;
+
+          totalProfit += (sellPrice - buyPrice) * qty;
         }
       }
 
       return {
-        'revenue': totalRevenue,
+        'revenue': totalRevenue,      // Total money in the register
+        'profit': totalProfit,        // The actual money you get to keep!
         'itemsSold': totalItemsSold,
         'salesCount': snapshot.docs.length,
       };
@@ -238,6 +253,7 @@ class StockRepository {
       'category': item.product.categoryName,
       'quantitySold': item.quantity,
       'priceAtSale': item.product.price,
+      'buyingPriceAtSale': item.product.buyingPrice, // --- ADDED: Vital for future profit reports! ---
       'rowTotal': item.total,
     }).toList();
 

@@ -23,7 +23,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
   late TextEditingController _nameController;
   late TextEditingController _modelController;
   late TextEditingController _qtyController;
-  late TextEditingController _priceController;
+  late TextEditingController _priceController; // This is the Selling Price
+  late TextEditingController _buyingPriceController; // --- NEW FIELD ---
   late TextEditingController _descController;
 
   bool _isSaving = false;
@@ -37,6 +38,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
     _modelController = TextEditingController(text: widget.product.productModel);
     _qtyController = TextEditingController(text: widget.product.quantity.toString());
     _priceController = TextEditingController(text: widget.product.price.toString());
+    // --- PRE-FILL THE BUYING PRICE ---
+    _buyingPriceController = TextEditingController(text: widget.product.buyingPrice.toString());
     _descController = TextEditingController(text: widget.product.description);
   }
 
@@ -54,6 +57,8 @@ class _EditProductScreenState extends State<EditProductScreen> {
         productModel: _modelController.text.trim(),
         quantity: int.parse(_qtyController.text.trim()),
         price: double.parse(_priceController.text.trim()),
+        // --- GRAB THE NEW BUYING PRICE TO SAVE ---
+        buyingPrice: double.tryParse(_buyingPriceController.text.trim()) ?? 0.0,
         description: _descController.text.trim(),
         imageUrl: widget.product.imageUrl,
 
@@ -85,6 +90,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     _modelController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
+    _buyingPriceController.dispose(); // --- SAFELY DISPOSE ---
     _descController.dispose();
     super.dispose();
   }
@@ -117,26 +123,39 @@ class _EditProductScreenState extends State<EditProductScreen> {
               CustomTextField(
                 label: "Model Name", hint: "Model", icon: Icons.settings,
                 controller: _modelController,
+                validator: (val) => val!.isEmpty ? "Required" : null,
               ),
+
+              // --- NEW LAYOUT: Qty Full Width ---
+              CustomTextField(
+                label: "Quantity", hint: "0", icon: Icons.format_list_numbered,
+                controller: _qtyController, keyboardType: TextInputType.number,
+                validator: (val) => val!.isEmpty ? "Required" : null,
+              ),
+
+              // --- NEW LAYOUT: Prices Side-by-Side ---
               Row(
                 children: [
                   Expanded(
                     child: CustomTextField(
-                      label: "Quantity", hint: "0", icon: Icons.format_list_numbered,
-                      controller: _qtyController, keyboardType: TextInputType.number,
+                      label: "Buying Price", // --- NEW FIELD ---
+                      hint: "0.00", icon: Icons.money_off,
+                      controller: _buyingPriceController, keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (val) => val!.isEmpty ? "Required" : null,
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: CustomTextField(
-                      label: "Price (\$)", hint: "0.00", icon: Icons.attach_money,
+                      label: "Selling Price", // --- RENAMED TO SELLING PRICE ---
+                      hint: "0.00", icon: Icons.attach_money,
                       controller: _priceController, keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (val) => val!.isEmpty ? "Required" : null,
                     ),
                   ),
                 ],
               ),
+
               CustomTextField(
                 label: "Description", hint: "Notes", icon: Icons.description,
                 controller: _descController,

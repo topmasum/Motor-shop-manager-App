@@ -10,6 +10,7 @@ class ProductModel {
   // --- NEW FIELDS ADDED ---
   final String description;
   final String imageUrl;
+  final double buyingPrice;
 
   ProductModel({
     required this.id,
@@ -21,6 +22,7 @@ class ProductModel {
     required this.searchKeywords,
     this.description = '', // Default to empty string if not provided
     this.imageUrl = '',    // Default to empty string if not provided
+    required this.buyingPrice
   });
 
   Map<String, dynamic> toMap() {
@@ -34,6 +36,7 @@ class ProductModel {
       'searchKeywords': searchKeywords,
       'description': description,
       'imageUrl': imageUrl,
+      'buyingPrice': buyingPrice,
     };
   }
 
@@ -49,6 +52,7 @@ class ProductModel {
       searchKeywords: List<String>.from(map['searchKeywords'] ?? []),
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'] ?? '',
+      buyingPrice: (map['buyingPrice'] ?? 0.0).toDouble(),
     );
   }
 }

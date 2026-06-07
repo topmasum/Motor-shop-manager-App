@@ -24,15 +24,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _qtyController = TextEditingController();
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
+  final _buyingPriceController = TextEditingController(); // Already here!
 
   // The list of items waiting to be saved to Firebase
   List<ProductModel> _pendingProducts = [];
 
-  // Dummy data for Category Auto-Suggest (We will fetch this from Firebase later)
-  // Remove the dummy data and replace with these:
   List<String> _availableCategories = [];
   List<String> _availableNames = [];
   List<String> _availableModels = [];
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +63,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         productModel: _modelController.text.trim(),
         quantity: int.parse(_qtyController.text.trim()),
         price: double.parse(_priceController.text.trim()),
+        // --- ADDED BUYING PRICE ---
+        buyingPrice: double.tryParse(_buyingPriceController.text.trim()) ?? 0.0,
         searchKeywords: [],
         description: _descController.text.trim(),
         imageUrl: '',
@@ -71,8 +73,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
       setState(() {
         // SMART BATCHING: Check if it's already in the pending list
         int existingIndex = _pendingProducts.indexWhere(
-          (p) =>
-              p.categoryName == newProduct.categoryName &&
+              (p) =>
+          p.categoryName == newProduct.categoryName &&
               p.name == newProduct.name &&
               p.productModel == newProduct.productModel,
         );
@@ -85,29 +87,33 @@ class _AddProductScreenState extends State<AddProductScreen> {
             categoryName: existing.categoryName,
             name: existing.name,
             productModel: existing.productModel,
-            quantity:
-                existing.quantity + newProduct.quantity, // Add quantities!
-            price: newProduct.price, // Use latest price
+            quantity: existing.quantity + newProduct.quantity,
+            price: newProduct.price, // Use latest selling price
+            // --- KEPT LATEST BUYING PRICE ---
+            buyingPrice: newProduct.buyingPrice,
             searchKeywords: existing.searchKeywords,
             description: existing.description,
             imageUrl: existing.imageUrl,
           );
         } else {
-          // Otherwise, add it as a new row
           _pendingProducts.add(newProduct);
         }
-        if (!_availableCategories.contains(newProduct.categoryName))
+
+        if (!_availableCategories.contains(newProduct.categoryName)) {
           _availableCategories.add(newProduct.categoryName);
-        if (!_availableNames.contains(newProduct.name))
+        }
+        if (!_availableNames.contains(newProduct.name)) {
           _availableNames.add(newProduct.name);
-        if (newProduct.productModel.isNotEmpty &&
-            !_availableModels.contains(newProduct.productModel))
+        }
+        if (newProduct.productModel.isNotEmpty && !_availableModels.contains(newProduct.productModel)) {
           _availableModels.add(newProduct.productModel);
+        }
       });
 
-      // Clear only the fields that usually change
+      // Clear the fields for the next item
       _qtyController.clear();
       _priceController.clear();
+      _buyingPriceController.clear(); // --- CLEARED BUYING PRICE ---
       _descController.clear();
 
       CustomSnackbar.showSuccess(context, "Added to batch!");
@@ -121,7 +127,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     try {
       for (var product in _pendingProducts) {
-        // Here we generate search keywords (e.g. "Oil", "Engine Oil", "Castrol")
         final keywords = product.name.toLowerCase().split(' ')
           ..addAll(product.categoryName.toLowerCase().split(' '))
           ..add(product.productModel.toLowerCase());
@@ -133,6 +138,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
           productModel: product.productModel,
           quantity: product.quantity,
           price: product.price,
+          // --- SAVED BUYING PRICE TO DB ---
+          buyingPrice: product.buyingPrice,
           searchKeywords: keywords,
         );
 
@@ -141,7 +148,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       if (mounted) {
         CustomSnackbar.showSuccess(context, "All products saved successfully!");
-        Navigator.pop(context); // Go back to the dashboard or stock list
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -159,6 +166,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _modelController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
+    _buyingPriceController.dispose(); // --- DISPOSED SAFELY ---
     _descController.dispose();
     super.dispose();
   }
@@ -177,7 +185,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
       body: Column(
         children: [
-          // THE FORM SECTION
           Expanded(
             flex: 6,
             child: SingleChildScrollView(
@@ -187,7 +194,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Image Placeholder
                     Center(
                       child: Container(
                         height: 120,
@@ -202,150 +208,117 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.add_a_photo,
-                              color: AppColors.textSecondary,
-                              size: 32,
-                            ),
+                            Icon(Icons.add_a_photo, color: AppColors.textSecondary, size: 32),
                             SizedBox(height: 8),
-                            Text(
-                              "Add Image",
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
+                            Text("Add Image", style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
 
-                    // Auto-suggest Category Field
                     Autocomplete<String>(
                       optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text.isEmpty) {
-                          return const Iterable<String>.empty();
-                        }
+                        if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
                         return _availableCategories.where((String option) {
-                          return option.toLowerCase().contains(
-                            textEditingValue.text.toLowerCase(),
-                          );
+                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
                         });
                       },
-                      onSelected: (String selection) {
-                        // Triggers if they tap a suggestion
-                        _categoryController.text = selection;
-                      },
-                      fieldViewBuilder:
-                          (context, controller, focusNode, onEditingComplete) {
-                            return CustomTextField(
-                              label: "Category",
-                              hint: "e.g. Engine Oil",
-                              icon: Icons.category,
-
-                              // 1. We use the controller provided by Autocomplete
-                              controller: controller,
-
-                              // 2. CRITICAL: This connects the text field to the dropdown menu!
-                              focusNode: focusNode,
-
-                              validator: (value) {
-                                // 3. Memory-Safe Sync: We capture custom typed words right before saving
-                                _categoryController.text = value ?? '';
-                                return value == null || value.isEmpty
-                                    ? "Category required"
-                                    : null;
-                              },
-                            );
+                      onSelected: (String selection) => _categoryController.text = selection,
+                      fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                        return CustomTextField(
+                          label: "Category",
+                          hint: "e.g. Engine Oil",
+                          icon: Icons.category,
+                          controller: controller,
+                          focusNode: focusNode,
+                          validator: (value) {
+                            _categoryController.text = value ?? '';
+                            return value == null || value.isEmpty ? "Category required" : null;
                           },
+                        );
+                      },
                     ),
 
-                    // --- AUTOCOMPLETE FOR NAME ---
                     Autocomplete<String>(
                       optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text.isEmpty)
-                          return const Iterable<String>.empty();
+                        if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
                         return _availableNames.where(
-                          (option) => option.toLowerCase().contains(
-                            textEditingValue.text.toLowerCase(),
-                          ),
+                              (option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()),
                         );
                       },
-                      onSelected: (String selection) =>
-                          _nameController.text = selection,
-                      fieldViewBuilder:
-                          (context, controller, focusNode, onEditingComplete) {
-                            return CustomTextField(
-                              label: "Product Name",
-                              hint: "e.g. Castrol GTX",
-                              icon: Icons.build,
-                              controller: controller,
-                              focusNode: focusNode,
-                              validator: (value) {
-                                _nameController.text = value ?? '';
-                                return value == null || value.isEmpty
-                                    ? "Name required"
-                                    : null;
-                              },
-                            );
+                      onSelected: (String selection) => _nameController.text = selection,
+                      fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                        return CustomTextField(
+                          label: "Product Name",
+                          hint: "e.g. Castrol GTX",
+                          icon: Icons.build,
+                          controller: controller,
+                          focusNode: focusNode,
+                          validator: (value) {
+                            _nameController.text = value ?? '';
+                            return value == null || value.isEmpty ? "Name required" : null;
                           },
+                        );
+                      },
                     ),
 
-                    // --- AUTOCOMPLETE FOR MODEL ---
                     Autocomplete<String>(
                       optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text.isEmpty)
-                          return const Iterable<String>.empty();
+                        if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
                         return _availableModels.where(
-                          (option) => option.toLowerCase().contains(
-                            textEditingValue.text.toLowerCase(),
-                          ),
+                              (option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()),
                         );
                       },
-                      onSelected: (String selection) =>
-                          _modelController.text = selection,
-                      fieldViewBuilder:
-                          (context, controller, focusNode, onEditingComplete) {
-                            return CustomTextField(
-                              label: "Model Name",
-                              hint: "e.g. 20W-50",
-                              icon: Icons.settings,
-                              controller: controller,
-                              focusNode: focusNode,
-                              validator: (value) {
-                                _modelController.text = value ?? '';
-                                return null; // Model is usually optional, so no error if empty
-                              },
-                            );
+                      onSelected: (String selection) => _modelController.text = selection,
+                      fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                        return CustomTextField(
+                          label: "Model Name",
+                          hint: "e.g. 20W-50",
+                          icon: Icons.settings,
+                          controller: controller,
+                          focusNode: focusNode,
+                          validator: (value) {
+                            // This forces the app to save whatever you typed, even if you didn't click a suggestion!
+                            _modelController.text = value ?? '';
+                            return value == null || value.isEmpty ? "Name required" : null;
                           },
+
+                        );
+                      },
+                    ),
+
+                    // --- NEW LAYOUT: Qty Full Width, Prices Side-by-Side ---
+                    CustomTextField(
+                      label: "Quantity",
+                      hint: "0",
+                      icon: Icons.format_list_numbered,
+                      controller: _qtyController,
+                      keyboardType: TextInputType.number,
+                      validator: (value) => value!.isEmpty ? "Required" : null,
                     ),
 
                     Row(
                       children: [
                         Expanded(
                           child: CustomTextField(
-                            label: "Quantity",
-                            hint: "0",
-                            icon: Icons.format_list_numbered,
-                            controller: _qtyController,
-                            keyboardType: TextInputType.number,
-                            validator: (value) =>
-                                value!.isEmpty ? "Required" : null,
+                            label: "Buying Price", // --- NEW FIELD ---
+                            hint: "0.00",
+                            icon: Icons.money_off,
+                            controller: _buyingPriceController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (value) => value!.isEmpty ? "Required" : null,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: CustomTextField(
-                            label: "Price (\$)",
+                            label: "Selling Price", // --- RENAMED FIELD ---
                             hint: "0.00",
                             icon: Icons.attach_money,
                             controller: _priceController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            validator: (value) =>
-                                value!.isEmpty ? "Required" : null,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (value) => value!.isEmpty ? "Required" : null,
                           ),
                         ),
                       ],
@@ -374,13 +347,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: AppColors.accent,
-                            width: 2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          side: const BorderSide(color: AppColors.accent, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
@@ -390,7 +358,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ),
           ),
 
-          // THE PENDING LIST SECTION
           if (_pendingProducts.isNotEmpty)
             Expanded(
               flex: 4,
@@ -419,36 +386,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           final product = _pendingProducts[index];
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              product.name,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            subtitle: Text(
-                              "${product.categoryName} • Qty: ${product.quantity}",
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            trailing: Text(
-                              "\$${product.price.toStringAsFixed(2)}",
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                            title: Text(product.name, style: const TextStyle(color: AppColors.textPrimary)),
+                            subtitle: Text("${product.categoryName} • Qty: ${product.quantity}", style: const TextStyle(color: AppColors.textSecondary)),
+                            trailing: Text("\$${product.price.toStringAsFixed(2)}", style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
                             leading: IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _pendingProducts.removeAt(index);
-                                });
-                              },
+                              icon: const Icon(Icons.delete, color: Colors.redAccent),
+                              onPressed: () => setState(() => _pendingProducts.removeAt(index)),
                             ),
                           );
                         },
