@@ -23,10 +23,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -66,4 +63,14 @@ class DefaultFirebaseOptions {
     projectId: 'motor-shop-manager',
     storageBucket: 'motor-shop-manager.firebasestorage.app',
   );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBUWqrMhg2vGk2Sxm1bPiuokruo5VOp4oY',
+    appId: '1:133346483325:ios:c86df5454ae53134472514',
+    messagingSenderId: '133346483325',
+    projectId: 'motor-shop-manager',
+    storageBucket: 'motor-shop-manager.firebasestorage.app',
+    iosBundleId: 'com.example.motorshop',
+  );
+
 }
