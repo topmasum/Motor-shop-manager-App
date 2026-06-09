@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/skeleton_card.dart';
 import '../../stock/services/stock_repository.dart';
 import '../models/sale_invoice_model.dart';
 import 'invoice_screen.dart';
@@ -22,7 +23,14 @@ class HistoryScreen extends StatelessWidget {
         stream: _stockRepo.getSalesHistory(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+            // Show 4 skeleton cards while loading to make the screen look full
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              itemBuilder: (context, index) {
+                return const SkeletonCard(); // Ensure you import this file at the top!
+              },
+            );
           }
 
           final sales = snapshot.data ?? [];

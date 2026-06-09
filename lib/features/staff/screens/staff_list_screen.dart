@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/custom_snackbar.dart';
 import '../../../core/utils/shop_session.dart';
+import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/skeleton_card.dart';
 import 'add_staff_screen.dart';
 
 class StaffListScreen extends StatelessWidget {
@@ -72,7 +74,14 @@ class StaffListScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+            // Show 4 skeleton cards while loading to make the screen look full
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              itemBuilder: (context, index) {
+                return const SkeletonCard(); // Ensure you import this file at the top!
+              },
+            );
           }
 
           if (snapshot.hasError) {
@@ -82,8 +91,10 @@ class StaffListScreen extends StatelessWidget {
           final staffDocs = snapshot.data?.docs ?? [];
 
           if (staffDocs.isEmpty) {
-            return const Center(
-              child: Text("No staff members added yet.", style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+            return EmptyStateWidget(
+              icon: Icons.group_add_outlined,
+              title: "No Team Members Yet",
+              message: "It looks a little quiet here. Add your staff so they can start managing the inventory and making sales!",
             );
           }
 
