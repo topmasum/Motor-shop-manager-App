@@ -23,6 +23,7 @@ dependencies:
   url_launcher: ^6.3.2
   http: ^1.6.0
   shimmer: ^3.0.0
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -37,6 +38,7 @@ flutter:
   # Corrected asset folder syntax
   assets:
     - assets/images/
+    - .env
 
 # FIXED: Pushed all the way to the left margin!
 flutter_launcher_icons:

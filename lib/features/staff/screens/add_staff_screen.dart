@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http; // --- ADDED FOR EMAILJS ---
 import 'dart:convert'; // --- ADDED FOR EMAILJS ---
 import '../../../core/constants/app_colors.dart';
@@ -34,9 +35,9 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
       url,
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
-        'service_id': 'service_i01rvwf', // Double check these!
-        'template_id': 'template_7fhj00b',
-        'user_id': 'sMXCDjJ6zBrN4CyE8',
+        'service_id': dotenv.env['EMAILJS_SERVICE_ID'],
+        'template_id': dotenv.env['EMAILJS_TEMPLATE_ID'],
+        'user_id': dotenv.env['EMAILJS_PUBLIC_KEY'],
         'template_params': {
           'staff_name': name,
           'staff_email': email,
