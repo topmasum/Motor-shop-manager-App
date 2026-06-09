@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // --- ADDED ---
+import '../../../core/utils/shop_session.dart'; // --- ADDED ---
 import 'login_screen.dart';
 import '../../home/screens/home_screen.dart';
 import '../../../core/constants/app_colors.dart';
@@ -10,11 +12,8 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      // This stream instantly checks if Firebase has a saved login token on the device
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-
-        // While it's checking, show a quick loading spinner
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: AppColors.background,
@@ -22,12 +21,32 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // If it found a valid logged-in user, send them straight to the Dashboard!
         if (snapshot.hasData) {
-          return const HomeScreen();
+          // --- THE MULTI-USER UPGRADE ---
+          // Before going to the Dashboard, we MUST load the Master Shop ID!
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('users').doc(snapshot.data!.uid).get(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  backgroundColor: AppColors.background,
+                  body: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                );
+              }
+
+              if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                // Lock the session for the new multi-user staff!
+                ShopSession.currentShopId = userSnapshot.data!.get('shopId');
+              } else {
+                // LEGACY FALLBACK: If the original owner logs in, use their UID
+                ShopSession.currentShopId = snapshot.data!.uid;
+              }
+
+              return const HomeScreen(); // Now we are safe to load the dashboard!
+            },
+          );
         }
 
-        // Otherwise, send them to the Login Screen
         return const LoginScreen();
       },
     );

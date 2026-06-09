@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:motorshop/features/sales_history/screens/history_screen.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/shop_session.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../pos/screens/point_of_sale_screen.dart';
+import '../../staff/screens/add_staff_screen.dart';
+import '../../staff/screens/staff_list_screen.dart';
 import '../../stock/screens/add_product_screen.dart';
 import '../../stock/screens/low_stock_screen.dart';
 import '../../stock/screens/stock_dashboard_screen.dart';
@@ -83,6 +86,18 @@ class HomeScreen extends StatelessWidget {
               },
             ),
             const Divider(color: AppColors.textSecondary, thickness: 0.2),
+            if (ShopSession.currentUserRole == 'Owner')
+              ListTile(
+                leading: const Icon(Icons.people_alt, color: Colors.blueAccent),
+                title: const Text('Manage Team', style: TextStyle(color: Colors.blueAccent)),
+                onTap: () {
+                  Navigator.pop(context);
+                  // --- ROUTE TO THE NEW LIST SCREEN ---
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const StaffListScreen()));
+                },
+              ),
+
+            const Divider(color: AppColors.textSecondary, thickness: 0.2),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
@@ -113,10 +128,11 @@ class HomeScreen extends StatelessWidget {
               ),
 
               // Dynamic Shop Name
+              // Dynamic Shop Name
               FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('shops')
-                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                    .doc(ShopSession.currentShopId) // --- CHANGED THIS LINE ---
                     .get(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -135,7 +151,7 @@ class HomeScreen extends StatelessWidget {
                   }
 
                   return const Text(
-                    "Shop Owner",
+                    "Motor Shop", // Better fallback name!
                     style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.bold),
                   );
                 },

@@ -9,7 +9,7 @@ class AuthService {
   // Get current user stream (to check if someone is logged in)
   Stream<User?> get userStream => _auth.authStateChanges();
 
-  // Sign Up
+  // Sign Up (This remains the same for the original Shop Owner)
   Future<String?> signUp({
     required String email,
     required String password,
@@ -25,7 +25,7 @@ class AuthService {
       User? user = credential.user;
 
       if (user != null) {
-        // 2. Send Email Verification
+        // 2. Send Email Verification (Only applies to the Owner now)
         await user.sendEmailVerification();
 
         // 3. Save the extra details (like shop name) to Firestore
@@ -41,7 +41,7 @@ class AuthService {
         return "Success! Please check your email to verify your account.";
       }
     } on FirebaseAuthException catch (e) {
-      return e.message; // Returns the specific error (e.g., "Email already in use")
+      return e.message;
     } catch (e) {
       return "An unexpected error occurred.";
     }
@@ -51,15 +51,18 @@ class AuthService {
   // Login
   Future<String?> login({required String email, required String password}) async {
     try {
-      UserCredential credential = await _auth.signInWithEmailAndPassword(
+      await _auth.signInWithEmailAndPassword( // Removed 'UserCredential credential =' since we don't need it below anymore
         email: email,
         password: password,
       );
 
-      // Check if email is verified before allowing access
-      if (!credential.user!.emailVerified) {
-        return "Please verify your email address before logging in.";
-      }
+      // --- THE FIX: REMOVED EMAIL VERIFICATION BLOCKER ---
+      // Since staff are manually invited by the Owner via EmailJS,
+      // their emails are already trusted. We bypass this check!
+
+      // if (!credential.user!.emailVerified) {
+      //   return "Please verify your email address before logging in.";
+      // }
 
       return "Success";
     } on FirebaseAuthException catch (e) {
@@ -68,6 +71,7 @@ class AuthService {
       return "An unexpected error occurred.";
     }
   }
+
   // Reset Password
   Future<String?> resetPassword({required String email}) async {
     try {

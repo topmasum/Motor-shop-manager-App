@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/utils/shop_session.dart'; // --- IMPORTED THE MEMORY BOX ---
 import '../../sales_history/models/sale_invoice_model.dart';
 import '../models/category_model.dart';
 import '../models/product_model.dart';
@@ -8,13 +9,21 @@ import '../../pos/models/cart_item.dart';
 class StockRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
+  // --- THE ENTERPRISE UPGRADE ---
+  // We no longer use the personal User ID. We use the shared Master Shop ID!
+  String? get _shopId => ShopSession.currentShopId;
 
-  DocumentReference get _shopDoc => _firestore.collection('shops').doc(_userId);
+  // --- SAFETY SHIELD ---
+  DocumentReference get _shopDoc {
+    if (_shopId == null) {
+      throw Exception("CRITICAL: Shop Session is empty. Please log out and log back in.");
+    }
+    return _firestore.collection('shops').doc(_shopId);
+  }
 
   // --- CATEGORY METHODS ---
   Future<void> addCategory(String categoryName) async {
-    if (_userId == null) return;
+    if (_shopId == null) return;
 
     await _shopDoc.collection('categories').doc(categoryName.toLowerCase()).set({
       'name': categoryName,
@@ -22,7 +31,7 @@ class StockRepository {
   }
 
   Stream<List<CategoryModel>> getCategories() {
-    if (_userId == null) return const Stream.empty();
+    if (_shopId == null) return const Stream.empty();
 
     return _shopDoc.collection('categories').snapshots().map((snapshot) {
       return snapshot.docs
@@ -32,7 +41,7 @@ class StockRepository {
   }
 
   Stream<List<ProductModel>> getProducts() {
-    if (_userId == null) return const Stream.empty();
+    if (_shopId == null) return const Stream.empty();
 
     return _shopDoc.collection('products').snapshots().map((snapshot) {
       return snapshot.docs
@@ -43,7 +52,7 @@ class StockRepository {
 
   // --- PRODUCT METHODS ---
   Future<void> addProduct(ProductModel product) async {
-    if (_userId == null) throw Exception("User not logged in");
+    if (_shopId == null) throw Exception("User not logged in");
 
     // SMART CHECK: Does this exact product already exist?
     final querySnapshot = await _shopDoc.collection('products')
@@ -72,7 +81,7 @@ class StockRepository {
         productModel: product.productModel,
         quantity: product.quantity,
         price: product.price,
-        buyingPrice: product.buyingPrice, // FIXED: Grabbed from the model, not the UI!
+        buyingPrice: product.buyingPrice,
         searchKeywords: product.searchKeywords,
         description: product.description,
         imageUrl: product.imageUrl,
@@ -87,7 +96,7 @@ class StockRepository {
 
   // --- AUTO-SUGGESTION HELPERS ---
   Future<List<String>> getCategoryNames() async {
-    if (_userId == null) return [];
+    if (_shopId == null) return [];
 
     try {
       final snapshot = await _shopDoc.collection('categories').get();
@@ -103,7 +112,7 @@ class StockRepository {
   }
 
   Future<Map<String, List<String>>> getUniqueNamesAndModels() async {
-    if (_userId == null) return {'names': [], 'models': []};
+    if (_shopId == null) return {'names': [], 'models': []};
 
     try {
       final snapshot = await _shopDoc.collection('products').get();
@@ -133,22 +142,21 @@ class StockRepository {
   }
 
   Future<void> deleteProduct(String productId) async {
-    if (_userId == null) throw Exception("User not logged in");
+    if (_shopId == null) throw Exception("User not logged in");
 
     await _shopDoc.collection('products').doc(productId).delete();
   }
 
   // --- UPDATE PRODUCT ---
   Future<void> updateProduct(ProductModel product) async {
-    if (_userId == null) throw Exception("User not logged in");
+    if (_shopId == null) throw Exception("User not logged in");
 
     await _shopDoc.collection('products').doc(product.id).update(product.toMap());
   }
 
   // --- DASHBOARD ANALYTICS ENGINE ---
-  // --- DASHBOARD ANALYTICS ENGINE ---
   Stream<Map<String, dynamic>> getTodayMetrics() {
-    if (_userId == null) return Stream.value({'revenue': 0.0, 'profit': 0.0, 'itemsSold': 0});
+    if (_shopId == null) return Stream.value({'revenue': 0.0, 'profit': 0.0, 'itemsSold': 0});
 
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
@@ -159,32 +167,36 @@ class StockRepository {
         .map((snapshot) {
 
       double totalRevenue = 0.0;
-      double totalProfit = 0.0; // --- NEW PROFIT TRACKER ---
+      double totalProfit = 0.0;
       int totalItemsSold = 0;
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
 
-        // Revenue is the total cash handed to you by the customer
-        totalRevenue += (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        // 1. REVENUE: The final, discounted cash handed to you by the customer
+        double saleRevenue = (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        totalRevenue += saleRevenue;
+
+        // 2. COST: How much did this specific cart cost YOU to buy from your supplier?
+        double totalCartCost = 0.0;
 
         final items = data['items'] as List<dynamic>? ?? [];
         for (var item in items) {
           int qty = (item['quantitySold'] as num?)?.toInt() ?? 0;
           totalItemsSold += qty;
 
-          // --- THE NEW PROFIT MATH ---
-          // Profit = (Selling Price - Buying Price) * Quantity Sold
-          double sellPrice = (item['priceAtSale'] as num?)?.toDouble() ?? 0.0;
+          // We sum up the original buying prices
           double buyPrice = (item['buyingPriceAtSale'] as num?)?.toDouble() ?? 0.0;
-
-          totalProfit += (sellPrice - buyPrice) * qty;
+          totalCartCost += (buyPrice * qty);
         }
+
+        // 3. PROFIT: The final discounted cash minus your supplier costs!
+        totalProfit += (saleRevenue - totalCartCost);
       }
 
       return {
-        'revenue': totalRevenue,      // Total money in the register
-        'profit': totalProfit,        // The actual money you get to keep!
+        'revenue': totalRevenue,
+        'profit': totalProfit,
         'itemsSold': totalItemsSold,
         'salesCount': snapshot.docs.length,
       };
@@ -193,7 +205,7 @@ class StockRepository {
 
   // --- WEEKLY CHART ANALYTICS ---
   Stream<List<double>> getWeeklySales() {
-    if (_userId == null) return Stream.value(List.filled(7, 0.0));
+    if (_shopId == null) return Stream.value(List.filled(7, 0.0));
 
     final today = DateTime.now();
     final weekAgo = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 6));
@@ -227,7 +239,7 @@ class StockRepository {
 
   // --- LOW STOCK ALERT ENGINE ---
   Stream<List<ProductModel>> getLowStockProducts() {
-    if (_userId == null) return const Stream.empty();
+    if (_shopId == null) return const Stream.empty();
 
     return _shopDoc.collection('products')
         .where('quantity', isLessThanOrEqualTo: 3)
@@ -241,7 +253,7 @@ class StockRepository {
 
   // --- UPGRADED CHECKOUT & SALES ENGINE ---
   Future<SaleInvoiceModel> completeSale(List<CartItem> cart, double finalTotal, String customerName, String customerPhone) async {
-    if (_userId == null) throw Exception("User not logged in");
+    if (_shopId == null) throw Exception("User not logged in");
 
     final batch = _firestore.batch();
     final saleRef = _shopDoc.collection('sales').doc();
@@ -253,7 +265,7 @@ class StockRepository {
       'category': item.product.categoryName,
       'quantitySold': item.quantity,
       'priceAtSale': item.product.price,
-      'buyingPriceAtSale': item.product.buyingPrice, // --- ADDED: Vital for future profit reports! ---
+      'buyingPriceAtSale': item.product.buyingPrice,
       'rowTotal': item.total,
     }).toList();
 
@@ -287,7 +299,7 @@ class StockRepository {
 
   // --- SALES HISTORY FETCH ---
   Stream<List<SaleInvoiceModel>> getSalesHistory() {
-    if (_userId == null) return const Stream.empty();
+    if (_shopId == null) return const Stream.empty();
 
     return _shopDoc.collection('sales')
         .orderBy('date', descending: true)
