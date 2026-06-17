@@ -97,8 +97,6 @@ class _PosScreenState extends State<PosScreen> {
         return StatefulBuilder(
             builder: (BuildContext modalContext, StateSetter setModalState) {
 
-              // THE FIX: We give the modal a specific height (85% of screen)
-              // so the list isn't restricted to being "tiny" anymore!
               return Container(
                 height: MediaQuery.of(modalContext).size.height * 0.85,
                 padding: EdgeInsets.only(
@@ -357,12 +355,15 @@ class _PosScreenState extends State<PosScreen> {
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+
+                  // --- THE FIX: RESPONSIVE WEB GRID ---
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220, // Cards will cap at 220px wide
                     childAspectRatio: 0.85,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                   ),
+
                   itemCount: filteredProducts.length,
                   itemBuilder: (context, index) {
                     final product = filteredProducts[index];
