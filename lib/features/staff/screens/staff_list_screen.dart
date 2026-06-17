@@ -32,10 +32,15 @@ class StaffListScreen extends StatelessWidget {
       ),
     );
 
-    // 2. Delete from Database if confirmed
+    // 2. Hide in Database if confirmed
     if (confirm == true) {
       try {
-        await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+        // --- ADDED: THE SOFT DELETE FIX ---
+        // Instead of permanently deleting, we just flag them as inactive
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'status': 'inactive'
+        });
+
         if (context.mounted) CustomSnackbar.showSuccess(context, "$staffName removed successfully.");
       } catch (e) {
         if (context.mounted) CustomSnackbar.showError(context, "Error removing staff: $e");
@@ -74,12 +79,11 @@ class StaffListScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Show 4 skeleton cards while loading to make the screen look full
             return ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: 4,
               itemBuilder: (context, index) {
-                return const SkeletonCard(); // Ensure you import this file at the top!
+                return const SkeletonCard();
               },
             );
           }
@@ -88,10 +92,19 @@ class StaffListScreen extends StatelessWidget {
             return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
           }
 
-          final staffDocs = snapshot.data?.docs ?? [];
+          final allDocs = snapshot.data?.docs ?? [];
+
+          // --- ADDED: THE CLIENT-SIDE ACTIVE FILTER ---
+          // This avoids the need for a new Firebase index and prevents older
+          // test accounts from disappearing because they lack the 'status' field.
+          final staffDocs = allDocs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] ?? 'active'; // Default older accounts to active
+            return status == 'active';
+          }).toList();
 
           if (staffDocs.isEmpty) {
-            return EmptyStateWidget(
+            return const EmptyStateWidget(
               icon: Icons.group_add_outlined,
               title: "No Team Members Yet",
               message: "It looks a little quiet here. Add your staff so they can start managing the inventory and making sales!",
@@ -143,13 +156,12 @@ class StaffListScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  // Only allow deleting if they are NOT an Owner
                   trailing: role != 'Owner'
                       ? IconButton(
                     icon: const Icon(Icons.person_remove, color: Colors.redAccent),
                     onPressed: () => _removeStaff(context, docId, name),
                   )
-                      : const SizedBox.shrink(), // Hides the button for Owners
+                      : const SizedBox.shrink(),
                 ),
               );
             },

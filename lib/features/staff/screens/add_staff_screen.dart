@@ -3,8 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http; // --- ADDED FOR EMAILJS ---
-import 'dart:convert'; // --- ADDED FOR EMAILJS ---
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/custom_snackbar.dart';
 import '../../../core/widgets/custom_text_field.dart';
@@ -48,53 +48,90 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
       }),
     );
 
-    // --- ADDED THIS SAFETY SHIELD ---
     if (response.statusCode != 200) {
-      // This will force the app to show the exact error in your red SnackBar!
       throw Exception("Email Delivery Failed: ${response.body}");
     }
   }
 
   Future<void> _inviteUser() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
-    FirebaseApp? tempApp; // Declare it up here so we can access it in the 'finally' block
-
     try {
-      // 1. SAFELY INITIALIZE THE TEMP APP
-      // First, check if a ghost session from a previous error still exists
-      try {
-        tempApp = Firebase.app('TemporaryRegisterApp');
-      } catch (e) {
-        // If it doesn't exist, create it cleanly
-        tempApp = await Firebase.initializeApp(
-          name: 'TemporaryRegisterApp',
-          options: Firebase.app().options,
-        );
-      }
+      // 1. Get your project's Web API Key automatically from your existing setup
+      final apiKey = Firebase.app().options.apiKey;
 
-      // 2. Register the new user
-      UserCredential newStaffCred = await FirebaseAuth.instanceFor(app: tempApp)
-          .createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      // 2. THE BYPASS: Make a direct HTTP request to Google's Auth Servers
+      final authUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$apiKey');
+
+      final response = await http.post(
+        authUrl,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text.trim(),
+          'returnSecureToken': false, // Ensures it doesn't log the new user in on your device!
+        }),
       );
 
-      // 3. Save to database
-      await FirebaseFirestore.instance.collection('users').doc(newStaffCred.user!.uid).set({
+      final responseData = json.decode(response.body);
+
+      // 3. Handle Firebase Auth Errors directly from the HTTP response
+      if (response.statusCode != 200) {
+        final errorMessage = responseData['error']['message'] ?? 'Unknown Error';
+
+        if (errorMessage == 'EMAIL_EXISTS') {
+          // --- THE SOFT DELETE REACTIVATION FIX ---
+          var existingUsers = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: _emailController.text.trim())
+              .get();
+
+          if (existingUsers.docs.isNotEmpty) {
+            var userId = existingUsers.docs.first.id;
+            await FirebaseFirestore.instance.collection('users').doc(userId).update({
+              'name': _nameController.text.trim(),
+              'role': _selectedRole,
+              'status': 'active', // Bring them back to life
+            });
+
+            if (mounted) {
+              CustomSnackbar.showSuccess(context, "User reactivated! Sending email invite...");
+              await _sendEmailJS(
+                _emailController.text.trim(),
+                _nameController.text.trim(),
+                _passwordController.text.trim(),
+                _selectedRole,
+              );
+              Navigator.pop(context);
+            }
+          } else {
+            if (mounted) CustomSnackbar.showError(context, "Email registered but not in your database.");
+          }
+          return; // Stop execution here since we successfully reactivated them
+        } else {
+          // If it's a different error (like WEAK_PASSWORD or INVALID_EMAIL)
+          throw Exception("Auth Error: $errorMessage");
+        }
+      }
+
+      // 4. If successful, grab the new user's unique ID from the payload
+      final newUid = responseData['localId'];
+
+      // 5. Save their profile to your Firestore database using that new UID
+      await FirebaseFirestore.instance.collection('users').doc(newUid).set({
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'role': _selectedRole,
         'shopId': ShopSession.currentShopId,
+        'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {
         CustomSnackbar.showSuccess(context, "User created successfully! Sending invite...");
 
-        // 4. Trigger EmailJS
+        // 6. Trigger EmailJS
         await _sendEmailJS(
           _emailController.text.trim(),
           _nameController.text.trim(),
@@ -105,17 +142,9 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
         Navigator.pop(context);
       }
 
-    } on FirebaseAuthException catch (e) {
-      // Catch specific Firebase errors (like email-already-in-use)
-      if (mounted) CustomSnackbar.showError(context, "Auth Error: ${e.message}");
     } catch (e) {
       if (mounted) CustomSnackbar.showError(context, "Error: ${e.toString()}");
     } finally {
-      // --- BULLETPROOF CLEANUP ---
-      // This runs NO MATTER WHAT. It guarantees the ghost session is destroyed.
-      if (tempApp != null) {
-        await tempApp.delete();
-      }
       if (mounted) setState(() => _isLoading = false);
     }
   }

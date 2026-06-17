@@ -85,14 +85,12 @@ class HomeScreen extends StatelessWidget {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const PosScreen()));
               },
             ),
-            const Divider(color: AppColors.textSecondary, thickness: 0.2),
-            if (ShopSession.currentUserRole == 'Owner')
+            if (['owner', 'co-owner', 'manager'].contains(ShopSession.currentUserRole?.trim().toLowerCase()))
               ListTile(
                 leading: const Icon(Icons.people_alt, color: Colors.blueAccent),
                 title: const Text('Manage Team', style: TextStyle(color: Colors.blueAccent)),
                 onTap: () {
                   Navigator.pop(context);
-                  // --- ROUTE TO THE NEW LIST SCREEN ---
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const StaffListScreen()));
                 },
               ),

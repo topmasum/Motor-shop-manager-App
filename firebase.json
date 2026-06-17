@@ -1,1 +1,37 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"motor-shop-manager","appId":"1:133346483325:android:5e646ada873a5f5e472514","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"motor-shop-manager","configurations":{"android":"1:133346483325:android:5e646ada873a5f5e472514","ios":"1:133346483325:ios:c86df5454ae53134472514","web":"1:133346483325:web:794050fc7e33e0b2472514"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "motor-shop-manager",
+          "appId": "1:133346483325:android:5e646ada873a5f5e472514",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "motor-shop-manager",
+          "configurations": {
+            "android": "1:133346483325:android:5e646ada873a5f5e472514",
+            "ios": "1:133346483325:ios:c86df5454ae53134472514",
+            "web": "1:133346483325:web:794050fc7e33e0b2472514"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
