@@ -276,6 +276,7 @@ class StockRepository {
       'items': itemsList,
       'customerName': customerName,
       'customerPhone': customerPhone,
+      'isHidden': false,
     };
 
     batch.set(saleRef, saleData);
@@ -305,7 +306,18 @@ class StockRepository {
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
+
+      // --- ADDED: THE SMART FILTER ---
       return snapshot.docs
+          .where((doc) {
+        // We check the raw data before converting it to a Model
+        final data = doc.data() as Map<String, dynamic>;
+
+        // If 'isHidden' doesn't exist (like on older sales), it defaults to false (visible)
+        final isHidden = data['isHidden'] ?? false;
+
+        return isHidden == false; // Only pass it to the UI if it is NOT hidden
+      })
           .map((doc) => SaleInvoiceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
           .toList();
     });

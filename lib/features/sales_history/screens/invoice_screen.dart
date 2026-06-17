@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // --- ADDED FOR DELETE ---
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../models/sale_invoice_model.dart';
+import '../../../core/utils/shop_session.dart'; // --- ADDED FOR ROLE CHECK ---
 import '../../../core/utils/custom_snackbar.dart';
+import '../models/sale_invoice_model.dart';
 
 class InvoiceScreen extends StatefulWidget {
   final SaleInvoiceModel invoice;
@@ -21,18 +23,64 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _isSharing = false;
 
+  // --- THE NEW SOFT-DELETE FUNCTION ---
+  Future<void> _hideInvoice() async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text("Remove Record?", style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text(
+            "Are you sure you want to remove this receipt? Your total revenue and analytics will not be affected.",
+            style: TextStyle(color: AppColors.textSecondary)
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Remove", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        // --- THE FIX: ADDED THE SHOP ID PATH ---
+        await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(ShopSession.currentShopId) // Go to your shop first!
+            .collection('sales')
+            .doc(widget.invoice.id)
+            .update({'isHidden': true});
+
+        if (mounted) {
+          CustomSnackbar.showSuccess(context, "Receipt removed.");
+          Navigator.pop(context); // Go back to the History list!
+        }
+      } catch (e) {
+        if (mounted) CustomSnackbar.showError(context, "Error removing record: $e");
+      }
+    }
+  }
+
+  // --- THE INVISIBLE SCREENSHOT GENERATOR ---
   Future<void> _shareReceipt() async {
     setState(() => _isSharing = true);
 
     try {
       final dateString = "${widget.invoice.date.day}/${widget.invoice.date.month}/${widget.invoice.date.year} at ${widget.invoice.date.hour}:${widget.invoice.date.minute.toString().padLeft(2, '0')}";
 
-      // 1. THE FIX: Build an invisible, full-length widget in the background
+      // Build an invisible, full-length widget in the background so nothing gets cut off!
       final imageBytes = await _screenshotController.captureFromWidget(
         Material(
           child: Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(32), // A bit more padding for the final image
+            padding: const EdgeInsets.all(32),
             child: Column(
               mainAxisSize: MainAxisSize.min, // Wraps tightly around all content
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,8 +111,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // THE FIX: We use a Column and map the items instead of a ListView
-                // This forces the widget to stretch to its full height!
+                // We use a Column and map the items instead of a ListView
+                // This forces the widget to stretch to its full height for the image!
                 Column(
                   children: widget.invoice.items.map((item) {
                     return Padding(
@@ -105,10 +153,10 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           ),
         ),
         delay: const Duration(milliseconds: 200), // Give it time to render off-screen
-        pixelRatio: 2.5, // Even higher resolution for a crisp PDF-like image!
+        pixelRatio: 2.5, // High resolution for a crisp PDF-like image
       );
 
-      // 2. Save and share as normal
+      // Save and share as normal
       final directory = await getApplicationDocumentsDirectory();
       final imagePath = await File('${directory.path}/receipt_${widget.invoice.id}.png').create();
       await imagePath.writeAsBytes(imageBytes);
@@ -136,6 +184,16 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         backgroundColor: AppColors.surface,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
+
+          // --- ADDED: SECURE DELETE BUTTON ---
+          // Safe Role Check ignoring case and spaces
+          if (['owner', 'co-owner', 'manager'].contains(ShopSession.currentUserRole?.trim().toLowerCase()))
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: _hideInvoice,
+            ),
+
+          // Share Button & Loading Spinner
           _isSharing
               ? const Padding(
             padding: EdgeInsets.only(right: 20.0),
