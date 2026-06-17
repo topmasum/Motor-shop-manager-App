@@ -114,7 +114,25 @@ class HistoryScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
-                        child: const Icon(Icons.receipt_long, color: Colors.greenAccent),
+                        child: // --- UPGRADED ICON DISPLAY ---
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            // If it's a service, make it blue. If it's a product, make it green.
+                              color: (sale.items.isNotEmpty && sale.items[0]['category'] == 'Service')
+                                  ? Colors.blue.withOpacity(0.1)
+                                  : Colors.green.withOpacity(0.1),
+                              shape: BoxShape.circle
+                          ),
+                          child: Icon(
+                            (sale.items.isNotEmpty && sale.items[0]['category'] == 'Service')
+                                ? Icons.handyman // Wrench icon for services
+                                : Icons.receipt_long, // Receipt icon for products
+                            color: (sale.items.isNotEmpty && sale.items[0]['category'] == 'Service')
+                                ? Colors.blueAccent
+                                : Colors.greenAccent,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(

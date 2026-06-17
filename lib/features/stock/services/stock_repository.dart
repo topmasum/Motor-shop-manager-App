@@ -322,4 +322,39 @@ class StockRepository {
           .toList();
     });
   }
+  // --- ADDED: THE SERVICE ENGINE ---
+  Future<void> completeServiceSale(
+      List<Map<String, dynamic>> services,
+      double finalTotal,
+      String customerName,
+      String customerPhone
+      ) async {
+    if (_shopId == null) throw Exception("User not logged in");
+
+    final saleRef = _shopDoc.collection('sales').doc();
+
+    // We format the typed services so the InvoiceScreen can read them perfectly
+    final itemsList = services.map((service) => {
+      'productId': 'CUSTOM_SERVICE',
+      'name': service['name'],
+      'category': 'Service',
+      'quantitySold': 1, // Services default to quantity 1
+      'priceAtSale': service['price'],
+      'buyingPriceAtSale': 0.0, // Pure profit!
+      'rowTotal': service['price'],
+    }).toList();
+
+    final saleData = {
+      'id': saleRef.id,
+      'totalAmount': finalTotal,
+      'date': FieldValue.serverTimestamp(),
+      'items': itemsList,
+      'customerName': customerName.isEmpty ? 'Walk-in Customer' : customerName,
+      'customerPhone': customerPhone,
+      'isHidden': false,
+      'isService': true, // --- THE MAGIC FLAG ---
+    };
+
+    await saleRef.set(saleData);
+  }
 }

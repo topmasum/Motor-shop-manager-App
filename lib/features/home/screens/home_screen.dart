@@ -6,6 +6,7 @@ import '../../../core/widgets/primary_button.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../pos/screens/point_of_sale_screen.dart';
+import '../../pos/screens/service_sale_screen.dart';
 import '../../staff/screens/add_staff_screen.dart';
 import '../../staff/screens/staff_list_screen.dart';
 import '../../stock/screens/add_product_screen.dart';
@@ -83,6 +84,15 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Make a Sale', style: TextStyle(color: AppColors.textSecondary)),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const PosScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.handyman, color: Colors.blueAccent), // Different icon!
+              title: const Text('Service Sale', style: TextStyle(color: Colors.blueAccent)),
+              onTap: () {
+                Navigator.pop(context);
+                // Make sure to import ServiceSaleScreen at the top of home_screen.dart!
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceSaleScreen()));
               },
             ),
             if (['owner', 'co-owner', 'manager'].contains(ShopSession.currentUserRole?.trim().toLowerCase()))
