@@ -87,8 +87,8 @@ class HomeScreen extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.handyman, color: Colors.blueAccent), // Different icon!
-              title: const Text('Service Sale', style: TextStyle(color: Colors.blueAccent)),
+              leading: const Icon(Icons.handyman, color: Colors.grey), // Different icon!
+              title: const Text('Service Sale', style: TextStyle(color: AppColors.textSecondary)),
               onTap: () {
                 Navigator.pop(context);
                 // Make sure to import ServiceSaleScreen at the top of home_screen.dart!
